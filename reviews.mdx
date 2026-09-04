@@ -1,7 +1,14 @@
 ---
-title: Reviews and decisions
-description: The review work queue, and how to record a human verdict on a run.
+title: "Reviews & Decisions - The Human Verdict Queue"
+description: "Work the Deepvue Workflows review queue. Learn how the decision axis differs from status, what flags a run for review, and how to record a verdict that settles it."
 ---
+
+## Overview
+
+Some runs need a person to look at them.
+`decision` is the axis that tracks where that human verdict stands, and it is independent of how far the run itself got.
+
+## The decision axis
 
 `decision` is a second axis, independent of `status`.
 `status` says how far a run got.
@@ -115,3 +122,19 @@ The response says which one happened.
 | `400` | `{"error":"payload.node_id is no longer accepted: a review decision applies to the whole run"}` |
 | `400` | `{"error":"payload rejected: decision must be \"approve\" or \"reject\""}` |
 | `404` | `{"error":"no open signal human_review_decision for this run"}` - the run is not parked on a review step |
+
+## Next steps
+
+<Columns cols="3">
+  <Card title="Reports" icon="file-text" href="/reports">
+    How a verdict rewrites the flagged cards on a report.
+  </Card>
+
+  <Card title="Run status lifecycle" icon="activity" href="/run-lifecycle">
+    Why a run awaiting review still reports in_progress.
+  </Card>
+
+  <Card title="Conventions and objects" icon="layers" href="/concepts">
+    The ReviewFlag shape and the rest of the object model.
+  </Card>
+</Columns>

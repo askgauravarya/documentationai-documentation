@@ -1,12 +1,14 @@
 ---
-title: Reports
-description: Read a run's verification report as JSON for your own UI, or as a rendered PDF.
+title: "Verification Reports - JSON Content Model & PDF"
+description: "Read a Deepvue Workflows verification report as JSON for your own UI, or as a rendered PDF for archiving. Includes the full content model and presence rules."
 ---
+
+## Overview
 
 Every run can be read back as a verification report.
 Two representations exist, printed from the same content model.
 
-<Columns cols={2}>
+<Columns cols="2">
   <Card title="JSON" icon="code" horizontal="false">
     `GET /v1/runs/{id}?view=report` returns the content model, before rendering.
     Use it to display results in your own UI without parsing a PDF.
@@ -105,3 +107,19 @@ Everything optional inside a card, meaning `note`, `entries`, `images`, `table`,
 </Callout>
 
 If report generation is not configured for your account, both routes return `503` with `{"error":"report generation is not configured"}`.
+
+## Next steps
+
+<Columns cols="3">
+  <Card title="Reviews and decisions" icon="user-check" href="/reviews">
+    Record the verdict that closes a flagged card.
+  </Card>
+
+  <Card title="Conventions and objects" icon="layers" href="/concepts">
+    Presence rules and the object model behind the report.
+  </Card>
+
+  <Card title="Webhooks" icon="bell" href="/webhooks">
+    Know when a run is terminal and its report is ready.
+  </Card>
+</Columns>

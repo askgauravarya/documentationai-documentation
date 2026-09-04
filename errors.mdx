@@ -1,38 +1,106 @@
 ---
-title: Errors
-description: The error envelope, and what each run error code means for your integration.
+title: "Error Codes & Troubleshooting Guide"
+description: "Complete reference for Deepvue Workflows API errors. Learn the transport error envelope, the five run error codes, and which failures are worth retrying."
 ---
 
-## The error envelope
+## Overview
+
+The Workflows API reports failure in two distinct places, and they mean different things.
+
+A **transport error** is the HTTP response to your call: the request was malformed, unauthenticated, or aimed at something that does not exist.
+A **run error** is a field on a run that finished badly: your call succeeded, but the verification journey did not.
+
+## HTTP status codes
+
+| Status Code | Meaning | Description |
+|-------------|---------|-------------|
+| `200` | OK | Request completed successfully |
+| `201` | Created | Webhook configured |
+| `202` | Accepted | Run started and is executing |
+| `400` | Bad Request | Invalid parameters, or a rejected request body |
+| `401` | Unauthorized | Authentication failed or missing credentials |
+| `403` | Forbidden | Valid credentials but the account is disabled or unauthorized |
+| `404` | Not Found | No such workflow or run, or no open review signal |
+| `409` | Conflict | A webhook is already configured for this workflow |
+| `502` | Bad Gateway | Authorization service temporarily unreachable, retry |
+| `503` | Service Unavailable | First-time setup incomplete, or report generation not configured |
+
+## Transport error format
 
 Transport errors use `{"error": "<message>"}`, and add `"code": "<CODE>"` when a machine-readable discriminator is available.
 
-```json
-{ "error": "insufficient balance", "code": "INSUFFICIENT_BALANCE" }
-```
+<Response tabs="400,401,404,409">
+  ```json
+  {
+    "error": "insufficient balance",
+    "code": "INSUFFICIENT_BALANCE"
+  }
+  ```
 
-Authentication failures are listed separately on the [Authentication](/authentication) page.
+  ```json
+  {
+    "error": "missing credentials: send client-id + x-api-key headers"
+  }
+  ```
 
-## RunError
+  ```json
+  {
+    "error": "run not found"
+  }
+  ```
+
+  ```json
+  {
+    "error": "webhook already configured for this workflow"
+  }
+  ```
+</Response>
+
+<Callout kind="info">
+  Unknown JSON fields in a request body are rejected, not silently ignored.
+  A field name typo is a `400`, not a no-op.
+</Callout>
+
+Authentication failures are listed in full on the [Authentication](/authentication) page.
+
+## Run errors
 
 `error` is present on a run only when `status` is `failed` or `expired`.
 It is otherwise explicitly `null`, never absent, so a poller can test it without a key-existence check.
 
-| Field | Type | Presence | Notes |
-| --- | --- | --- | --- |
-| `code` | enum | always | See the table below. |
-| `check` | string | when attributable | `key` of the check the run exited on. |
-| `message` | string | always | A plain sentence. Safe to log, not intended for end users. |
+<ResponseField name="code" field-type="string" required="true">
+  One of the five codes below.
+</ResponseField>
 
-### Codes
+<ResponseField name="check" field-type="string" required="false">
+  The `key` of the check the run exited on, when attributable.
+</ResponseField>
+
+<ResponseField name="message" field-type="string" required="true">
+  A plain sentence.
+  Safe to log, not intended for end users.
+</ResponseField>
+
+### Run error codes
 
 | Code | Meaning | Suggested action |
-| --- | --- | --- |
+|------|---------|------------------|
 | `CHECK_FAILED` | A verification step returned a negative result. The subject did not pass. | Terminal business outcome. Read `checks[]` for which and why. Do not retry. |
 | `RETRIES_EXHAUSTED` | Every call succeeded, but a step kept returning a result the workflow rejected until the attempt budget ran out. | Terminal business outcome. `message` says what the step was looking for. Do not retry. |
 | `SOURCE_UNAVAILABLE` | An upstream verification source did not return a usable response. | Transient. Start a new run. |
 | `LINK_EXPIRED` | The end user never completed an interactive step before the deadline. | Start a new run and re-issue the link. |
 | `WORKFLOW_ERROR` | Anything else: a configuration or internal fault. | Not retryable by the caller. Contact support with the `run_id`. |
+
+```json
+{
+  "status": "failed",
+  "error": {
+    "code": "CHECK_FAILED",
+    "check": "pan",
+    "message": "A verification step did not pass."
+  }
+}
+```
 
 <Callout kind="alert">
   Switch on `code`.
@@ -49,4 +117,19 @@ It never contains the upstream vendor response: no vendor status code, response 
 Neither returns the other's runs, and each run comes back exactly once.
 
 Query for both if you mean "everything that halted badly".
-See [Run status lifecycle](/run-lifecycle) for the full comparison.
+
+## Next steps
+
+<Columns cols="3">
+  <Card title="Run status lifecycle" icon="activity" href="/run-lifecycle">
+    Six statuses, which are terminal, and abandoned versus expired.
+  </Card>
+
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Every credential failure and what it means.
+  </Card>
+
+  <Card title="Reviews and decisions" icon="user-check" href="/reviews">
+    A failed run is never in the review queue. Here is what is.
+  </Card>
+</Columns>

@@ -1,7 +1,11 @@
 ---
-title: Conventions and objects
-description: Timestamps, absent versus null, the list envelope, and every object shape in the API.
+title: "Conventions & Object Schemas - Deepvue Workflows API"
+description: "Reference for Workflows API conventions and object shapes. Timestamps, the list envelope, absent versus null, and the Workflow, Run, Check, and ReviewFlag schemas."
 ---
+
+## Overview
+
+This page is the reference for how the Workflows API shapes its JSON, and for every object you will read back from it.
 
 ## Conventions
 
@@ -184,3 +188,19 @@ See [Errors](/errors) for the code table and what to do about each one.
 | `code` | enum | always | See [Errors](/errors). |
 | `check` | string | when attributable | `key` of the check the run exited on. |
 | `message` | string | always | A plain sentence. Safe to log, not intended for end users. |
+
+## Next steps
+
+<Columns cols="3">
+  <Card title="Run status lifecycle" icon="activity" href="/run-lifecycle">
+    The six statuses a run moves through, and which are terminal.
+  </Card>
+
+  <Card title="Reviews and decisions" icon="user-check" href="/reviews">
+    How the decision axis works alongside status.
+  </Card>
+
+  <Card title="Errors" icon="alert-circle" href="/errors">
+    The transport envelope and the five run error codes.
+  </Card>
+</Columns>

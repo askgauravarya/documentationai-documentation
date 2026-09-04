@@ -1,6 +1,14 @@
 {
-  "name": "Deepvue Decisioning",
+  "name": "Deepvue Workflows",
   "initialRoute": "introduction",
+  "scripts": [
+    {
+      "src": "scripts/rybbit-analytics.js"
+    },
+    {
+      "src": "scripts/gleap-widget.js"
+    }
+  ],
   "navbar": {
     "actions": {
       "primary": {
@@ -120,5 +128,8 @@
         ]
       }
     ]
-  }
+  },
+  "logo-dark": "https://blob-cdn.documentation.ai/org-35a9452b-0cd6-482e-9c17-02d7fa738f0b/doc-6051d161-5a15-4e94-955d-51bdb1b18902/1772847861438-ua1eqh22jtr-deepvue_logo_dark.png?q=85&fm=auto&auto=compress%2Cformat",
+  "logo-light": "https://blob-cdn.documentation.ai/org-35a9452b-0cd6-482e-9c17-02d7fa738f0b/doc-6051d161-5a15-4e94-955d-51bdb1b18902/1772847885930-t4ozqmnpxi-deepvue_logo.png?q=85&fm=auto&auto=compress%2Cformat",
+  "favicon": "https://blob-cdn.documentation.ai/org-35a9452b-0cd6-482e-9c17-02d7fa738f0b/doc-6051d161-5a15-4e94-955d-51bdb1b18902/1772847904742-qvz3w7j2kt-favicon.ico?q=85&fm=auto&auto=compress%2Cformat"
 }

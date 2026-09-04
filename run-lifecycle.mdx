@@ -1,7 +1,14 @@
 ---
-title: Run status lifecycle
-description: The six run statuses, which are terminal, and how abandoned differs from expired.
+title: "Run Status Lifecycle - Six Statuses & Terminal States"
+description: "Understand the six Deepvue Workflows run statuses, which are terminal, and how abandoned differs from expired. Includes filtering rules and read-time computation."
 ---
+
+## Overview
+
+A run moves through a small, closed set of statuses.
+Knowing which are terminal is the whole of a correct polling loop, and knowing that `abandoned` is not terminal is the mistake most integrations make first.
+
+## The six statuses
 
 There are six statuses, and they partition runs: every run is exactly one of them.
 
@@ -101,3 +108,19 @@ Unlike `abandoned`, this is terminal: the run cannot be resumed.
 Issue a new run for the same `reference_id`.
 
 Every run here reports `status: "expired"` and `error.code: "LINK_EXPIRED"`, the same on the list and the single-run fetch, and fires the `run.expired` webhook rather than `run.failed`.
+
+## Next steps
+
+<Columns cols="3">
+  <Card title="Reviews and decisions" icon="user-check" href="/reviews">
+    Waiting on an operator is not a status. Here is how it is surfaced.
+  </Card>
+
+  <Card title="Webhooks" icon="bell" href="/webhooks">
+    Be told when a run goes terminal instead of polling for it.
+  </Card>
+
+  <Card title="Errors" icon="alert-circle" href="/errors">
+    What each run error code means for your retry logic.
+  </Card>
+</Columns>

@@ -1,9 +1,12 @@
 ---
-title: Authentication
-description: The two headers every request carries, and what each failure status means.
+title: "Authentication - Client ID & API Key"
+description: "Learn how to authenticate with the Deepvue Workflows API using your client ID and API key headers. Includes code examples and failure handling."
 ---
 
-Partners authenticate every request with two credentials, sent as headers.
+## Overview
+
+Every request to the Workflows API carries two credentials, sent as headers.
+There is no token exchange step: the pair authenticates each call directly.
 
 <ParamField header="client-id" param-type="string" required="true">
   Your Deepvue client identifier.
@@ -19,31 +22,126 @@ Partners authenticate every request with two credentials, sent as headers.
   It must never be exposed in a browser or a mobile client.
 </Callout>
 
-Send both headers on every request.
+## Getting your credentials
 
-```bash
-curl 'https://api.deepvue.link/v1/workflows' \
-  -H 'client-id: YOUR_CLIENT_ID' \
-  -H 'x-api-key: YOUR_API_KEY'
-```
+<Steps>
+  <Step title="Log in to the Dashboard" icon="log-in">
+    Visit the [Deepvue Dashboard](https://dashboard.deepvue.ai) and sign in to your account.
+  </Step>
+
+  <Step title="Open the credentials tab" icon="key">
+    Find your client ID and API key.
+  </Step>
+
+  <Step title="Send both on every request" icon="shield-check">
+    Store them as server-side environment variables and attach them to each call.
+  </Step>
+</Steps>
+
+## Making an authenticated request
+
+<CodeGroup tabs="cURL,Python,Node.js">
+  ```bash
+  curl 'https://api.deepvue.link/v1/workflows' \
+    -H 'client-id: YOUR_CLIENT_ID' \
+    -H 'x-api-key: YOUR_API_KEY'
+  ```
+
+  ```python
+  import os
+  import requests
+
+  BASE = "https://api.deepvue.link"
+  HEADERS = {
+      "client-id": os.environ["DEEPVUE_CLIENT_ID"],
+      "x-api-key": os.environ["DEEPVUE_API_KEY"],
+  }
+
+  response = requests.get(f"{BASE}/v1/workflows", headers=HEADERS, timeout=30)
+  response.raise_for_status()
+  print(response.json())
+  ```
+
+  ```javascript
+  const BASE = "https://api.deepvue.link";
+  const headers = {
+    "client-id": process.env.DEEPVUE_CLIENT_ID,
+    "x-api-key": process.env.DEEPVUE_API_KEY,
+  };
+
+  const response = await fetch(`${BASE}/v1/workflows`, { headers });
+  if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+  console.log(await response.json());
+  ```
+</CodeGroup>
 
 ## Authentication failures
 
-| Status | Body | Meaning |
-| --- | --- | --- |
-| `401` | `{"error":"missing credentials: send client-id + x-api-key headers"}` | No usable credential was supplied. |
-| `401` | `{"error":"invalid Deepvue credentials"}` | The credential pair was rejected. |
-| `403` | `{"error":"account_disabled"}` | The account exists but is not yet approved. |
-| `403` | `{"error":"Deepvue account not authorized for this surface"}` | The account is not authorized for this API. |
-| `502` | `{"error":"deepvue authorize failed: …"}` | Authorization service temporarily unreachable. Retry. |
-| `503` | `{"error":"auto-provisioning disabled - log in once via /auth/login first"}` | First-time setup not yet completed. |
+| Status Code | Meaning | Description |
+|-------------|---------|-------------|
+| `401` | Missing credentials | No usable credential was supplied |
+| `401` | Invalid credentials | The credential pair was rejected |
+| `403` | Account disabled | The account exists but is not yet approved |
+| `403` | Not authorized | The account is not authorized for this API |
+| `502` | Authorize failed | Authorization service temporarily unreachable, retry |
+| `503` | Auto-provisioning disabled | First-time setup not yet completed |
+
+<Response tabs="401,401,403,403,502,503">
+  ```json
+  {
+    "error": "missing credentials: send client-id + x-api-key headers"
+  }
+  ```
+
+  ```json
+  {
+    "error": "invalid Deepvue credentials"
+  }
+  ```
+
+  ```json
+  {
+    "error": "account_disabled"
+  }
+  ```
+
+  ```json
+  {
+    "error": "Deepvue account not authorized for this surface"
+  }
+  ```
+
+  ```json
+  {
+    "error": "deepvue authorize failed: …"
+  }
+  ```
+
+  ```json
+  {
+    "error": "auto-provisioning disabled - log in once via /auth/login first"
+  }
+  ```
+</Response>
+
+<Callout kind="info">
+  Retry `502` responses with backoff.
+  Treat `401` and `403` as configuration problems rather than transient faults, and do not retry them in a loop.
+</Callout>
 
 ## Bearer tokens
 
 One route also accepts a dashboard Bearer token instead of the header pair: `POST /v1/signals/{run_id}/{signal_name}`, used to record a review verdict.
 Every other route requires `client-id` and `x-api-key`.
 
-<Callout kind="info">
-  Retry `502` responses.
-  Treat `401` and `403` as configuration problems rather than transient faults, and do not retry them in a loop.
-</Callout>
+## Next steps
+
+<Columns cols="2">
+  <Card title="Quickstart" icon="zap" href="/quickstart">
+    Start your first run and read its result.
+  </Card>
+
+  <Card title="Errors" icon="alert-circle" href="/errors">
+    Understand run error codes and retry behaviour.
+  </Card>
+</Columns>
