@@ -1,64 +1,82 @@
 ---
-title: Verification Workflows API
-description: Trigger Deepvue verification workflows, poll runs to completion, resolve human reviews, and read verification reports.
+title: "Deepvue Workflows API Docs - Verification Journeys, Runs & Reports"
+description: "Trigger multi-step verification journeys with one API call. Start runs, poll to completion, resolve human reviews, and pull signed verification reports."
 ---
 
-The Verification Workflows API is Deepvue's partner surface for running verification journeys end to end.
-You define a workflow once in the dashboard, then use this API to start runs against it, follow each run to a terminal status, resolve anything that needs a human, and read the resulting report.
+## Ship verification journeys, not integrations
 
-<Columns cols={3}>
-  <Card title="Base URL" icon="globe" horizontal="false">
-    `https://api.deepvue.link`
+Deepvue Workflows turns a multi-step verification journey into a single API call.
+You compose the journey once in the dashboard, then start runs, follow them to a verdict, and read the report.
+
+<Columns cols="3">
+  <Card title="Quickstart" icon="zap" href="/quickstart">
+    Start your first run and read its result in under 5 minutes.
   </Card>
-  <Card title="Version" icon="tag" horizontal="false">
-    `v1`
+
+  <Card title="API Reference" icon="code" href="/authentication">
+    Explore all 9 endpoints across workflows, runs, and reviews.
   </Card>
-  <Card title="Audience" icon="users" horizontal="false">
-    Deepvue customers and partners with a `client-id` and API key.
+
+  <Card title="Deepvue Dashboard" icon="layout-dashboard" href="https://dashboard.deepvue.ai/sign-up" target="_blank">
+    Compose workflows, manage credentials, and monitor usage.
   </Card>
 </Columns>
 
-## The model
+<Columns cols="3">
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Authenticate every request with your client ID and API key.
+  </Card>
 
-Four objects carry everything in this API.
+  <Card title="Errors" icon="alert-circle" href="/errors">
+    Understand run error codes and which failures are worth a retry.
+  </Card>
 
-<Columns cols={2}>
-  <Card title="Workflow" icon="git-branch" horizontal="false">
-    A verification journey you configured in the dashboard.
-    Its `steps` tell you every check that can appear in a result.
-  </Card>
-  <Card title="Run" icon="play" horizontal="false">
-    One execution of a workflow for one subject.
-    It moves through a status lifecycle until it is terminal.
-  </Card>
-  <Card title="Check" icon="check-circle" horizontal="false">
-    One logical verification step inside a run, with its own status and result data.
-  </Card>
-  <Card title="Decision" icon="gavel" horizontal="false">
-    The human verdict on a run.
-    An axis independent of status: `review`, `approve`, `reject`, or none owed.
+  <Card title="Webhooks" icon="bell" href="/webhooks">
+    Get notified when a run finishes instead of polling for it.
   </Card>
 </Columns>
 
-The shape of a normal integration follows from that.
+## Explore by capability
 
-<Steps>
-  <Step title="Start a run" icon="play">
-    `POST /v1/workflows/{id}/runs` with your own `reference_id` for the subject.
-  </Step>
-  <Step title="Send the customer to the journey" icon="external-link">
-    For interactive workflows the response already carries `action_required.url`.
-  </Step>
-  <Step title="Poll until terminal" icon="repeat">
-    `GET /v1/runs/{id}` until `status` is `completed`, `failed`, `expired`, or `cancelled`.
-  </Step>
-  <Step title="Read the results" icon="file-text">
-    Inspect `checks[]`, or fetch the report as JSON or PDF.
-  </Step>
-  <Step title="Resolve anything flagged" icon="user-check">
-    Work the `?decision=review` queue and record a verdict.
-  </Step>
-</Steps>
+<Columns cols="3">
+  <Card title="Workflows" icon="git-branch" href="/concepts">
+    Discover the journeys available to you and every check they can run.
+  </Card>
+
+  <Card title="Runs" icon="play" href="/run-lifecycle">
+    Start a run, follow six statuses, and know exactly when it is terminal.
+  </Card>
+
+  <Card title="Reviews" icon="user-check" href="/reviews">
+    Work the human queue and record a verdict that settles the run.
+  </Card>
+</Columns>
+
+<Columns cols="3">
+  <Card title="Reports" icon="file-text" href="/reports">
+    Render results in your own UI, or archive the signed PDF.
+  </Card>
+
+  <Card title="Conventions" icon="layers" href="/concepts">
+    Timestamps, absent versus null, the list envelope, and every object shape.
+  </Card>
+
+  <Card title="Changelog" icon="history" href="/changelog">
+    Track releases and behaviour changes across the v1 surface.
+  </Card>
+</Columns>
+
+## Platform essentials
+
+| Feature | Details |
+|---------|---------|
+| **Base URL** | `https://api.deepvue.link` |
+| **Protocol** | HTTPS required, REST conventions |
+| **Auth** | `client-id` + `x-api-key` headers ([details](/authentication)) |
+| **Timestamps** | RFC 3339 UTC, for example `2026-07-30T09:14:02Z` |
+| **List format** | Fixed envelope with `data`, `total`, `limit`, `offset` |
+| **Run statuses** | Six statuses that partition every run ([details](/run-lifecycle)) |
+| **Error handling** | `code`, `check`, and `message` on a failed run ([details](/errors)) |
 
 ## Two things that surprise most integrators
 
@@ -70,28 +88,17 @@ The shape of a normal integration follows from that.
 <Callout kind="info">
   A run can finish every screen and still be owed a human verdict.
   `status` says how far a run got; `decision` says where a human verdict on it stands.
-  The two are independent and are AND-ed when you filter.
+  The two are independent axes and are AND-ed when you filter.
 </Callout>
 
-## Start here
+## Resources
 
-<Columns cols={2}>
-  <Card title="Quickstart" href="/quickstart" icon="zap" horizontal="false">
-    Your first run, end to end, in seven steps.
+<Columns cols="2">
+  <Card title="Deepvue Dashboard" icon="layout-dashboard" href="https://dashboard.deepvue.ai" target="_blank">
+    Compose workflows, manage credentials and team members, and monitor usage.
   </Card>
-  <Card title="Authentication" href="/authentication" icon="lock" horizontal="false">
-    The two headers every request carries, and what each failure means.
-  </Card>
-  <Card title="Conventions and objects" href="/concepts" icon="layers" horizontal="false">
-    Timestamps, absent versus null, the list envelope, and every object shape.
-  </Card>
-  <Card title="Run status lifecycle" href="/run-lifecycle" icon="activity" horizontal="false">
-    The six statuses, which are terminal, and abandoned versus expired.
-  </Card>
-  <Card title="Reviews and decisions" href="/reviews" icon="user-check" horizontal="false">
-    The review work queue and how to record a verdict.
-  </Card>
-  <Card title="Reports" href="/reports" icon="file-text" horizontal="false">
-    The report content model and the rendered PDF.
+
+  <Card title="Service Status" icon="activity" href="https://status.deepvue.ai" target="_blank">
+    Real-time uptime monitoring for all Deepvue services.
   </Card>
 </Columns>

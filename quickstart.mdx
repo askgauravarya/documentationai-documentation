@@ -1,7 +1,9 @@
 ---
-title: Quickstart
-description: Your first verification run, end to end.
+title: "Quickstart - Your First Verification Run in 5 Minutes"
+description: "Get started with the Deepvue Workflows API in minutes. Find a workflow, start a run, send your customer to the journey, and read the result with cURL, Python, or Node.js."
 ---
+
+## Overview
 
 This walkthrough takes you from credentials to a finished, readable result.
 Every request carries the `client-id` and `x-api-key` headers described in [Authentication](/authentication).
@@ -10,11 +12,23 @@ Every request carries the `client-id` and `x-api-key` headers described in [Auth
   <Step title="Find the workflow you want to run" icon="list">
     List the workflows available to your account and note the `id` of the one you want.
 
-    ```bash
-    curl 'https://api.deepvue.link/v1/workflows' \
-      -H 'client-id: YOUR_CLIENT_ID' \
-      -H 'x-api-key: YOUR_API_KEY'
-    ```
+    <CodeGroup tabs="cURL,Python,Node.js">
+      ```bash
+      curl 'https://api.deepvue.link/v1/workflows' \
+        -H 'client-id: YOUR_CLIENT_ID' \
+        -H 'x-api-key: YOUR_API_KEY'
+      ```
+
+      ```python
+      workflows = requests.get(f"{BASE}/v1/workflows", headers=HEADERS, timeout=30).json()
+      workflow_id = workflows["data"][0]["id"]
+      ```
+
+      ```javascript
+      const workflows = await (await fetch(`${BASE}/v1/workflows`, { headers })).json();
+      const workflowId = workflows.data[0].id;
+      ```
+    </CodeGroup>
 
     ```json
     {
@@ -38,12 +52,6 @@ Every request carries the `client-id` and `x-api-key` headers described in [Auth
   <Step title="Build your result mapping before you run anything" icon="map">
     `GET /v1/workflows/{id}` adds `steps`: every check key that can appear in a run's `checks[]`.
 
-    ```bash
-    curl 'https://api.deepvue.link/v1/workflows/e97e7d78-4ceb-4283-8080-5c5e0b72ddac' \
-      -H 'client-id: YOUR_CLIENT_ID' \
-      -H 'x-api-key: YOUR_API_KEY'
-    ```
-
     <Callout kind="info">
       `steps` is a superset.
       Workflows branch, so a single run produces a subset of these keys.
@@ -54,17 +62,50 @@ Every request carries the `client-id` and `x-api-key` headers described in [Auth
   <Step title="Start a run" icon="play">
     `reference_id` is your own identifier for the person or entity, and it is echoed back on every read.
 
-    ```bash
-    curl -X POST 'https://api.deepvue.link/v1/workflows/e97e7d78-4ceb-4283-8080-5c5e0b72ddac/runs' \
-      -H 'Content-Type: application/json' \
-      -H 'client-id: YOUR_CLIENT_ID' \
-      -H 'x-api-key: YOUR_API_KEY' \
-      -d '{
-        "reference_id": "user_123",
-        "input": { "pan_number": "ABCDE1234F", "mobile": "9876543210" },
-        "redirect_uri": "https://your-app.example.com/kyc/done"
-      }'
-    ```
+    <CodeGroup tabs="cURL,Python,Node.js">
+      ```bash
+      curl -X POST 'https://api.deepvue.link/v1/workflows/WORKFLOW_ID/runs' \
+        -H 'Content-Type: application/json' \
+        -H 'client-id: YOUR_CLIENT_ID' \
+        -H 'x-api-key: YOUR_API_KEY' \
+        -d '{
+          "reference_id": "user_123",
+          "input": { "pan_number": "ABCDE1234F", "mobile": "9876543210" },
+          "redirect_uri": "https://your-app.example.com/kyc/done"
+        }'
+      ```
+
+      ```python
+      run = requests.post(
+          f"{BASE}/v1/workflows/{workflow_id}/runs",
+          headers=HEADERS,
+          json={
+              "reference_id": "user_123",
+              "input": {"pan_number": "ABCDE1234F", "mobile": "9876543210"},
+              "redirect_uri": "https://your-app.example.com/kyc/done",
+          },
+          timeout=30,
+      ).json()
+
+      run_id = run["id"]
+      journey_url = (run.get("action_required") or {}).get("url")
+      ```
+
+      ```javascript
+      const response = await fetch(`${BASE}/v1/workflows/${workflowId}/runs`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference_id: "user_123",
+          input: { pan_number: "ABCDE1234F", mobile: "9876543210" },
+          redirect_uri: "https://your-app.example.com/kyc/done",
+        }),
+      });
+
+      const run = await response.json();
+      const journeyUrl = run.action_required?.url;
+      ```
+    </CodeGroup>
 
     The `202` response is the list shape, so it carries no `checks`.
 
@@ -99,20 +140,46 @@ Every request carries the `client-id` and `x-api-key` headers described in [Auth
   </Step>
 
   <Step title="Poll until the run is terminal" icon="repeat">
-    ```bash
-    curl 'https://api.deepvue.link/v1/runs/1e30a341-cb3b-48b8-9992-99a1b436b8d9' \
-      -H 'client-id: YOUR_CLIENT_ID' \
-      -H 'x-api-key: YOUR_API_KEY'
-    ```
-
     Stop when `status` is `completed`, `failed`, `expired`, or `cancelled`.
-    See [Run status lifecycle](/run-lifecycle) for what each one means.
+
+    <CodeGroup tabs="cURL,Python,Node.js">
+      ```bash
+      curl 'https://api.deepvue.link/v1/runs/RUN_ID' \
+        -H 'client-id: YOUR_CLIENT_ID' \
+        -H 'x-api-key: YOUR_API_KEY'
+      ```
+
+      ```python
+      import time
+
+      TERMINAL = {"completed", "failed", "expired", "cancelled"}
+
+      while True:
+          run = requests.get(f"{BASE}/v1/runs/{run_id}", headers=HEADERS, timeout=30).json()
+          if run["status"] in TERMINAL:
+              break
+          time.sleep(5)
+      ```
+
+      ```javascript
+      const TERMINAL = new Set(["completed", "failed", "expired", "cancelled"]);
+
+      let run;
+      do {
+        run = await (await fetch(`${BASE}/v1/runs/${runId}`, { headers })).json();
+        if (TERMINAL.has(run.status)) break;
+        await new Promise((r) => setTimeout(r, 5000));
+      } while (true);
+      ```
+    </CodeGroup>
 
     <Callout kind="alert">
       `abandoned` is not terminal, and it is the only status that can un-happen.
       The run stays live and resumes the moment the customer returns.
       Never infer "this run is over" from seeing it.
     </Callout>
+
+    Prefer [webhooks](/webhooks) over polling once you are past the prototype stage.
   </Step>
 
   <Step title="Read the results" icon="file-text">
@@ -158,17 +225,16 @@ Every request carries the `client-id` and `x-api-key` headers described in [Auth
 
 ## Next steps
 
-<Columns cols={2}>
-  <Card title="Conventions and objects" href="/concepts" icon="layers" horizontal="false">
+<Columns cols="3">
+  <Card title="Conventions and objects" icon="layers" href="/concepts">
     The list envelope, absent versus null, and every object shape.
   </Card>
-  <Card title="Errors" href="/errors" icon="alert-triangle" horizontal="false">
-    Which failures are terminal business outcomes and which are worth a retry.
+
+  <Card title="Run status lifecycle" icon="activity" href="/run-lifecycle">
+    Six statuses, which are terminal, and abandoned versus expired.
   </Card>
-  <Card title="Reports" href="/reports" icon="file-text" horizontal="false">
-    Render results in your own UI, or archive the PDF.
-  </Card>
-  <Card title="Webhooks" href="/webhooks" icon="bell" horizontal="false">
-    Get notified instead of polling.
+
+  <Card title="Errors" icon="alert-circle" href="/errors">
+    Which failures are terminal business outcomes and which deserve a retry.
   </Card>
 </Columns>

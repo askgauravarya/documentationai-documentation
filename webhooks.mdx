@@ -1,7 +1,14 @@
 ---
-title: Webhooks
-description: Get notified when a run reaches a terminal status instead of polling for it.
+title: "Webhooks - Run Lifecycle Events"
+description: "Configure a Deepvue Workflows lifecycle webhook to be notified when a run reaches a terminal status, instead of polling. Includes setup and what does not fire."
 ---
+
+## Overview
+
+Polling is fine for a prototype.
+In production, configure a lifecycle webhook per workflow and let Deepvue tell you when a run is done.
+
+## Lifecycle events
 
 When a workflow has a `lifecycle_webhook_url` configured, Deepvue notifies your endpoint on run-completion lifecycle events.
 
@@ -45,3 +52,19 @@ The field is omitted when no per-workflow webhook is set.
 `abandoned` also fires nothing.
 It is a read-time classification of a run that is still live and still resumable, not a lifecycle event.
 The same journey fires `run.expired` later, if the customer never comes back.
+
+## Next steps
+
+<Columns cols="3">
+  <Card title="Run status lifecycle" icon="activity" href="/run-lifecycle">
+    Which statuses are terminal, and which fire nothing.
+  </Card>
+
+  <Card title="Reports" icon="file-text" href="/reports">
+    Fetch the result once the run is done.
+  </Card>
+
+  <Card title="Errors" icon="alert-circle" href="/errors">
+    Tell a business outcome apart from a transient fault.
+  </Card>
+</Columns>
