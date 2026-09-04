@@ -1,78 +1,97 @@
 ---
-title: Set Up Your Documentation
-description: 'A minimal, editable starting point for your own documentation site.'
+title: Verification Workflows API
+description: Trigger Deepvue verification workflows, poll runs to completion, resolve human reviews, and read verification reports.
 ---
-## Start here (5–10 minutes)
 
-1. Edit this page so it describes your product and audience.
+The Verification Workflows API is Deepvue's partner surface for running verification journeys end to end.
+You define a workflow once in the dashboard, then use this API to start runs against it, follow each run to a terminal status, resolve anything that needs a human, and read the resulting report.
 
-2. Customize your onboarding flow in the [Quickstart](/quickstart) page.
-
-3. Delete or rewrite any sections and pages you do not plan to use.
-
-4. Invite a teammate to review the structure and concepts starting from [Core Concepts](/concepts).
-
-<Callout kind="alert" collapsed="false">
-  This site ships with placeholder content. Edit the text, links, and examples so they match your product before sharing it with others.
-</Callout>
-
-## What you get
-
-<Columns cols="3">
-  <Card title="Docs structure" href="/quickstart" icon="book-open" horizontal="false">
-    A clear navigation layout with starter pages you can rename or replace.
+<Columns cols={3}>
+  <Card title="Base URL" icon="globe" horizontal="false">
+    `https://api.deepvue.link`
   </Card>
-
-  <Card title="Components" href="#try-a-few-components" icon="layout-grid" horizontal="false" target="_self">
-    Prebuilt blocks like Callouts, Steps, Tabs, and Cards to keep pages clean.
+  <Card title="Version" icon="tag" horizontal="false">
+    `v1`
   </Card>
-
-  <Card title="API reference hook" href="/authentication" icon="code" horizontal="false">
-    A placeholder `openapi.yaml` you can swap with your real API spec.
+  <Card title="Audience" icon="users" horizontal="false">
+    Deepvue customers and partners with a `client-id` and API key.
   </Card>
 </Columns>
 
-## Make your first edit
+## The model
+
+Four objects carry everything in this API.
+
+<Columns cols={2}>
+  <Card title="Workflow" icon="git-branch" horizontal="false">
+    A verification journey you configured in the dashboard.
+    Its `steps` tell you every check that can appear in a result.
+  </Card>
+  <Card title="Run" icon="play" horizontal="false">
+    One execution of a workflow for one subject.
+    It moves through a status lifecycle until it is terminal.
+  </Card>
+  <Card title="Check" icon="check-circle" horizontal="false">
+    One logical verification step inside a run, with its own status and result data.
+  </Card>
+  <Card title="Decision" icon="gavel" horizontal="false">
+    The human verdict on a run.
+    An axis independent of status: `review`, `approve`, `reject`, or none owed.
+  </Card>
+</Columns>
+
+The shape of a normal integration follows from that.
 
 <Steps>
-  <Step title="Rewrite this page" icon="edit" title-type="p">
-    Update the title, description, and sections in `introduction` so they reflect your product and documentation goals.
+  <Step title="Start a run" icon="play">
+    `POST /v1/workflows/{id}/runs` with your own `reference_id` for the subject.
   </Step>
-
-  <Step title="Customize Quickstart" icon="zap" title-type="p">
-    Replace the steps in `quickstart` with your real onboarding flow so new readers know exactly how to get started.
+  <Step title="Send the customer to the journey" icon="external-link">
+    For interactive workflows the response already carries `action_required.url`.
   </Step>
-
-  <Step title="Remove or repurpose samples" icon="trash" title-type="p">
-    Delete unused sample sections and pages, or rewrite them with your own content to keep navigation focused.
+  <Step title="Poll until terminal" icon="repeat">
+    `GET /v1/runs/{id}` until `status` is `completed`, `failed`, `expired`, or `cancelled`.
+  </Step>
+  <Step title="Read the results" icon="file-text">
+    Inspect `checks[]`, or fetch the report as JSON or PDF.
+  </Step>
+  <Step title="Resolve anything flagged" icon="user-check">
+    Work the `?decision=review` queue and record a verdict.
   </Step>
 </Steps>
 
-## Try a few components
+## Two things that surprise most integrators
 
-You can browse the component gallery in the [Components](/components) page for ready-to-use examples of Cards, Callouts, Steps, Tabs, and more.
+<Callout kind="info">
+  `completed` means the workflow finished, not that every check passed.
+  Inspect `checks[].status` to learn the verification outcome.
+</Callout>
 
-## Continue to the rest of the sample
+<Callout kind="info">
+  A run can finish every screen and still be owed a human verdict.
+  `status` says how far a run got; `decision` says where a human verdict on it stands.
+  The two are independent and are AND-ed when you filter.
+</Callout>
 
-<Columns cols="2">
+## Start here
+
+<Columns cols={2}>
   <Card title="Quickstart" href="/quickstart" icon="zap" horizontal="false">
-    See the minimal setup flow.
+    Your first run, end to end, in seven steps.
   </Card>
-
-  <Card title="Core Concepts" href="/concepts" icon="layers" horizontal="false">
-    Learn how pages, navigation, and components fit together.
-  </Card>
-
-  <Card title="Components" href="/components" icon="code" horizontal="false">
-    A small gallery of built-in components.
-  </Card>
-
   <Card title="Authentication" href="/authentication" icon="lock" horizontal="false">
-    Example layout for an auth guide.
+    The two headers every request carries, and what each failure means.
   </Card>
-
-  <Card title="Help Center" href="/help-center" icon="help-circle" horizontal="false">
-    Starter FAQ, guides, and troubleshooting templates.
+  <Card title="Conventions and objects" href="/concepts" icon="layers" horizontal="false">
+    Timestamps, absent versus null, the list envelope, and every object shape.
+  </Card>
+  <Card title="Run status lifecycle" href="/run-lifecycle" icon="activity" horizontal="false">
+    The six statuses, which are terminal, and abandoned versus expired.
+  </Card>
+  <Card title="Reviews and decisions" href="/reviews" icon="user-check" horizontal="false">
+    The review work queue and how to record a verdict.
+  </Card>
+  <Card title="Reports" href="/reports" icon="file-text" horizontal="false">
+    The report content model and the rendered PDF.
   </Card>
 </Columns>
-

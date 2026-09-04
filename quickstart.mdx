@@ -1,58 +1,174 @@
 ---
 title: Quickstart
-description: Minimal steps to customize this sample starter kit.
+description: Your first verification run, end to end.
 ---
-## Overview
 
-<Callout kind="alert" collapsed="false">
-  This site ships with placeholder content. Use this quickstart to replace it with your real product docs.
-</Callout>
-
-## 1. Update a page
+This walkthrough takes you from credentials to a finished, readable result.
+Every request carries the `client-id` and `x-api-key` headers described in [Authentication](/authentication).
 
 <Steps>
-  <Step title="Edit introduction" icon="edit" title-type="p">
-    Replace the sample introduction with a concise overview of your product and the key actions you want new users to take first.
+  <Step title="Find the workflow you want to run" icon="list">
+    List the workflows available to your account and note the `id` of the one you want.
+
+    ```bash
+    curl 'https://api.deepvue.link/v1/workflows' \
+      -H 'client-id: YOUR_CLIENT_ID' \
+      -H 'x-api-key: YOUR_API_KEY'
+    ```
+
+    ```json
+    {
+      "data": [
+        {
+          "id": "e97e7d78-4ceb-4283-8080-5c5e0b72ddac",
+          "name": "Individual KYC",
+          "published": true,
+          "run_ttl_seconds": 86400,
+          "abandon_timeout_seconds": 3600,
+          "created_at": "2026-06-01T10:00:00Z"
+        }
+      ],
+      "total": 1,
+      "limit": 50,
+      "offset": 0
+    }
+    ```
   </Step>
 
-  <Step title="Preview your change" icon="monitor" title-type="p">
-    Use your dashboard board editor to confirm the updated introduction looks and reads as expected.
+  <Step title="Build your result mapping before you run anything" icon="map">
+    `GET /v1/workflows/{id}` adds `steps`: every check key that can appear in a run's `checks[]`.
+
+    ```bash
+    curl 'https://api.deepvue.link/v1/workflows/e97e7d78-4ceb-4283-8080-5c5e0b72ddac' \
+      -H 'client-id: YOUR_CLIENT_ID' \
+      -H 'x-api-key: YOUR_API_KEY'
+    ```
+
+    <Callout kind="info">
+      `steps` is a superset.
+      Workflows branch, so a single run produces a subset of these keys.
+      Treat a key that never arrives as "that branch was not taken", not as an error.
+    </Callout>
+  </Step>
+
+  <Step title="Start a run" icon="play">
+    `reference_id` is your own identifier for the person or entity, and it is echoed back on every read.
+
+    ```bash
+    curl -X POST 'https://api.deepvue.link/v1/workflows/e97e7d78-4ceb-4283-8080-5c5e0b72ddac/runs' \
+      -H 'Content-Type: application/json' \
+      -H 'client-id: YOUR_CLIENT_ID' \
+      -H 'x-api-key: YOUR_API_KEY' \
+      -d '{
+        "reference_id": "user_123",
+        "input": { "pan_number": "ABCDE1234F", "mobile": "9876543210" },
+        "redirect_uri": "https://your-app.example.com/kyc/done"
+      }'
+    ```
+
+    The `202` response is the list shape, so it carries no `checks`.
+
+    ```json
+    {
+      "id": "1e30a341-cb3b-48b8-9992-99a1b436b8d9",
+      "workflow_id": "e97e7d78-4ceb-4283-8080-5c5e0b72ddac",
+      "reference_id": "user_123",
+      "status": "in_progress",
+      "started_at": "2026-07-30T09:14:02Z",
+      "completed_at": null,
+      "action_required": {
+        "type": "customer_input",
+        "signal_name": "selfie_captured",
+        "url": "https://hosted.deepvue.link/h/eyJ0eXAi..."
+      },
+      "error": null
+    }
+    ```
+  </Step>
+
+  <Step title="Send the customer to the journey" icon="external-link">
+    For interactive workflows the response blocks briefly and already carries `action_required.url`, so no poll is needed to obtain the link.
+
+    If the wait times out you receive a non-terminal status with `action_required: null`.
+    Poll `GET /v1/runs/{id}` for the link.
+
+    <Callout kind="info">
+      `redirect_uri` is validated against your tenant's allowlist at request time.
+      Deepvue appends `run_id` and `status` to it when the run becomes terminal.
+    </Callout>
+  </Step>
+
+  <Step title="Poll until the run is terminal" icon="repeat">
+    ```bash
+    curl 'https://api.deepvue.link/v1/runs/1e30a341-cb3b-48b8-9992-99a1b436b8d9' \
+      -H 'client-id: YOUR_CLIENT_ID' \
+      -H 'x-api-key: YOUR_API_KEY'
+    ```
+
+    Stop when `status` is `completed`, `failed`, `expired`, or `cancelled`.
+    See [Run status lifecycle](/run-lifecycle) for what each one means.
+
+    <Callout kind="alert">
+      `abandoned` is not terminal, and it is the only status that can un-happen.
+      The run stays live and resumes the moment the customer returns.
+      Never infer "this run is over" from seeing it.
+    </Callout>
+  </Step>
+
+  <Step title="Read the results" icon="file-text">
+    The detail endpoint adds `checks[]`, `reviews[]`, and the decision fields.
+
+    ```json
+    {
+      "id": "1e30a341-cb3b-48b8-9992-99a1b436b8d9",
+      "status": "completed",
+      "completed_at": "2026-07-30T09:16:41Z",
+      "action_required": null,
+      "checks": [
+        { "key": "pan", "label": "PAN verification", "status": "passed",
+          "data": { "valid": true, "name_on_pan": "ANUJ RAWAT" } },
+        { "key": "face_match", "label": "Face match", "status": "passed",
+          "data": { "match": true, "score": 0.94 } }
+      ],
+      "decision": null,
+      "resolved_at": null,
+      "error": null
+    }
+    ```
+
+    <Callout kind="alert">
+      `completed` means the workflow reached its end, not that every check passed.
+      Inspect `checks[].status`.
+    </Callout>
+  </Step>
+
+  <Step title="Work the review queue" icon="user-check">
+    Some runs finish and still owe a human verdict.
+    Poll for them, then record the decision.
+
+    ```bash
+    curl 'https://api.deepvue.link/v1/runs?decision=review' \
+      -H 'client-id: YOUR_CLIENT_ID' \
+      -H 'x-api-key: YOUR_API_KEY'
+    ```
+
+    See [Reviews and decisions](/reviews) for the full queue semantics.
   </Step>
 </Steps>
-
-## 2. Add a new page
-
-<Steps>
-  <Step title="Add a page" icon="file-text" title-type="p">
-    Create a new `page` by clicking on the + button from the left navigation bar of dashboard. If you are using git, create the .mdx file and add to navigation bar using documentation.json
-  </Step>
-</Steps>
-
-## Example onboarding flow (replace with yours)
-
-1. Sign up for an account and verify your email.
-
-2. Create your first workspace, project, or environment.
-
-3. Add one integration or data source to connect your existing tools.
-
-4. Complete a guided action (for example, run your first job or publish your first resource).
-
-5. Invite a teammate and assign a basic role or permission.
-
-## 3. Connect API Reference (optional)
-
-If you have an API, replace `openapi.yaml` with your real OpenAPI file. If you do not need an API reference, remove that tab either from dashboard or  `documentation.json`.
 
 ## Next steps
 
-<Columns cols="2">
-  <Card title="Core Concepts" href="/concepts" icon="layers" horizontal="false">
-    Keep the mental model simple and easy to scan.
+<Columns cols={2}>
+  <Card title="Conventions and objects" href="/concepts" icon="layers" horizontal="false">
+    The list envelope, absent versus null, and every object shape.
   </Card>
-
-  <Card title="Authentication" href="/authentication" icon="lock" horizontal="false">
-    Add your real auth flows and security notes.
+  <Card title="Errors" href="/errors" icon="alert-triangle" horizontal="false">
+    Which failures are terminal business outcomes and which are worth a retry.
+  </Card>
+  <Card title="Reports" href="/reports" icon="file-text" horizontal="false">
+    Render results in your own UI, or archive the PDF.
+  </Card>
+  <Card title="Webhooks" href="/webhooks" icon="bell" horizontal="false">
+    Get notified instead of polling.
   </Card>
 </Columns>
-

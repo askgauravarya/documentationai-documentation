@@ -1,11 +1,30 @@
 {
-  "name": "Starter Kit",
+  "name": "Deepvue Decisioning",
+  "initialRoute": "introduction",
+  "navbar": {
+    "actions": {
+      "primary": {
+        "title": "Get API Keys",
+        "link": "https://dashboard.deepvue.ai/sign-up"
+      },
+      "links": [
+        {
+          "title": "Status",
+          "link": "https://status.deepvue.ai"
+        }
+      ]
+    }
+  },
   "colors": {
     "light": {
-      "brand": "#F97316"
+      "brand": "#2D6FEF",
+      "heading": "#0E1B3D",
+      "text": "#4A5A72"
     },
     "dark": {
-      "brand": "#FDBA74"
+      "brand": "#2D6FEF",
+      "heading": "#FFFFFF",
+      "text": "#c1c1c1"
     }
   },
   "navigation": {
@@ -15,7 +34,7 @@
         "icon": "book",
         "groups": [
           {
-            "group": "Start Here",
+            "group": "Getting Started",
             "icon": "rocket",
             "pages": [
               {
@@ -27,47 +46,37 @@
                 "title": "Quickstart",
                 "path": "quickstart",
                 "icon": "zap"
-              },
-              {
-                "title": "Components",
-                "path": "components",
-                "icon": "code"
               }
             ]
           },
           {
-            "group": "Components",
+            "group": "Core Concepts",
             "icon": "layers",
             "pages": [
               {
-                "title": "Images",
-                "path": "components/images",
-                "icon": "image"
+                "title": "Conventions and objects",
+                "path": "concepts",
+                "icon": "layers"
               },
               {
-                "title": "Cards",
-                "path": "components/cards",
-                "icon": "square"
+                "title": "Run status lifecycle",
+                "path": "run-lifecycle",
+                "icon": "activity"
               },
               {
-                "title": "Code",
-                "path": "components/code",
-                "icon": "code"
+                "title": "Reviews and decisions",
+                "path": "reviews",
+                "icon": "user-check"
               },
               {
-                "title": "Callouts",
-                "path": "components/callouts",
-                "icon": "message-square"
+                "title": "Reports",
+                "path": "reports",
+                "icon": "file-text"
               },
               {
-                "title": "Steps",
-                "path": "components/steps",
-                "icon": "list-ordered"
-              },
-              {
-                "title": "Tabs",
-                "path": "components/tabs",
-                "icon": "columns"
+                "title": "Webhooks",
+                "path": "webhooks",
+                "icon": "bell"
               }
             ]
           }
@@ -85,56 +94,17 @@
                 "title": "Authentication",
                 "path": "authentication",
                 "icon": "lock"
+              },
+              {
+                "title": "Errors",
+                "path": "errors",
+                "icon": "alert-triangle"
               }
             ]
           },
           {
-            "group": "Sample Endpoints",
+            "group": "Endpoints",
             "openapi": "openapi.yaml"
-          }
-        ]
-      },
-      {
-        "tab": "Help Center",
-        "icon": "help-circle",
-        "pages": [
-          {
-            "title": "Help Center",
-            "path": "help-center",
-            "icon": "home"
-          },
-          {
-            "group": "FAQs",
-            "icon": "help-circle",
-            "expandable": false,
-            "pages": [
-              {
-                "title": "Documentation Source",
-                "path": "help-center/faq/getting-started"
-              }
-            ]
-          },
-          {
-            "group": "Troubleshooting",
-            "icon": "alert-triangle",
-            "expandable": false,
-            "pages": [
-              {
-                "title": "Page Missing in Sidebar",
-                "path": "help-center/troubleshooting/install-error"
-              }
-            ]
-          },
-          {
-            "group": "Guides",
-            "icon": "book-open",
-            "expandable": false,
-            "pages": [
-              {
-                "title": "Create Your First Page",
-                "path": "help-center/guides/setup-project"
-              }
-            ]
           }
         ]
       },
