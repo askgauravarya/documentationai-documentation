@@ -54,6 +54,11 @@
                 "title": "Quickstart",
                 "path": "quickstart",
                 "icon": "zap"
+              },
+              {
+                "title": "Docs Search MCP",
+                "path": "mcp-server",
+                "icon": "plug"
               }
             ]
           },
@@ -113,17 +118,6 @@
           {
             "group": "Endpoints",
             "openapi": "openapi.yaml"
-          }
-        ]
-      },
-      {
-        "tab": "Changelog",
-        "icon": "clock",
-        "pages": [
-          {
-            "title": "Changelog",
-            "path": "changelog",
-            "icon": "history"
           }
         ]
       }
