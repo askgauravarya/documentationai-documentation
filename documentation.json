@@ -115,17 +115,6 @@
             "openapi": "openapi.yaml"
           }
         ]
-      },
-      {
-        "tab": "Changelog",
-        "icon": "clock",
-        "pages": [
-          {
-            "title": "Changelog",
-            "path": "changelog",
-            "icon": "history"
-          }
-        ]
       }
     ]
   },
