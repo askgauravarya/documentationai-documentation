@@ -3,6 +3,9 @@
   "initialRoute": "introduction",
   "scripts": [
     {
+      "src": "scripts/rybbit-analytics.js"
+    },
+    {
       "src": "scripts/gleap-widget.js"
     }
   ],
