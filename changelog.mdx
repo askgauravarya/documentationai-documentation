@@ -1,22 +1,12 @@
 ---
-title: Sample Changelog
-description: Sample release notes you can replace with your real updates.
+title: Changelog
+description: Releases and behaviour changes in the Verification Workflows API.
 ---
 
-## Sample updates
-
-<Callout kind="alert">
-This changelog is example content. Replace every entry with your real releases.
-</Callout>
-
-<Update label="2026-01-26" description="Sample Update" tags={["sample"]}>
+<Update label="2026-08" description="v1 partner API reference" tags={["v1"]}>
 ## What changed
-- Cleaned up placeholder copy across the starter kit.
-- Added clearer "sample" messaging to avoid confusion.
-</Update>
 
-<Update label="2025-12-10" description="Sample Update" tags={["sample"]}>
-## What changed
-- Simplified the Quickstart steps.
-- Trimmed Help Center examples.
+- Published the `/v1` partner API reference: workflows, runs, reviews, reports, and webhooks.
+- `POST /v1/signals/{run_id}/human_review_decision` no longer accepts `payload.node_id`.
+  A review decision applies to the whole run, and sending a `node_id` is now a `400` rather than an ignored field.
 </Update>

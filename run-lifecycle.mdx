@@ -1,0 +1,103 @@
+---
+title: Run status lifecycle
+description: The six run statuses, which are terminal, and how abandoned differs from expired.
+---
+
+There are six statuses, and they partition runs: every run is exactly one of them.
+
+| Status | Terminal | Meaning |
+| --- | :---: | --- |
+| `in_progress` | | Accepted and executing, with an active customer, or waiting on one of your operators. |
+| `abandoned` | | Parked on the customer, idle past `abandon_timeout_seconds`. |
+| `completed` | ✓ | Reached the end of the workflow. Read `checks[]`. |
+| `failed` | ✓ | Halted on a check or a fault, not on a deadline. `error` is non-null. |
+| `expired` | ✓ | Halted because a deadline passed, not because a check did. `error.code` is `LINK_EXPIRED`. |
+| `cancelled` | ✓ | Cancelled via the API. |
+
+Poll until `status` is terminal.
+
+<Callout kind="alert">
+  `completed` means the workflow finished, not that every check passed.
+  Inspect `checks[].status`.
+</Callout>
+
+Because the six partition cleanly, you can sum them to get your total run count, and a run that halted badly is `failed` or `expired`, never both.
+Treat `expired` as a kind of failure, since it is terminal and always carries an `error`.
+But query for both if you mean "everything that halted badly", because a single filter does not cover the pair.
+
+## Waiting on an operator is not a status
+
+A run waiting on one of your operators reports `in_progress` and is surfaced by `?decision=review`.
+Use `action_required`, not `status`, to tell who is being waited on and why.
+
+## Two statuses are computed at read time
+
+`abandoned` and `expired` are evaluated per request from the run's signals and audit trail, by the same query the `?status=` filter uses.
+So the value you filter on and the value you read back always agree.
+
+| Value | A run that is... | Computed from |
+| --- | --- | --- |
+| `abandoned` | Waiting on the customer and idle past `abandon_timeout_seconds` | Open signals and `last_activity_at` |
+| `expired` | Halted on a deadline rather than a check | The audit trail |
+
+The practical consequence is that `abandon_timeout_seconds` is applied at read time.
+Change it and existing runs re-classify on your next request, with no backfill.
+
+## Abandoned versus expired
+
+These describe the same customer at different points, and they call for opposite responses.
+
+| | `abandoned` | `expired` / `LINK_EXPIRED` |
+| --- | --- | --- |
+| When | Idle past `abandon_timeout_seconds` (default 1h) | The run passed `run_ttl_seconds` (default 24h), or the interactive step it was parked on timed out |
+| Terminal | No, it can un-happen | Yes |
+| Resumable | Yes, nudge the customer | No, issue a new run |
+| On the list | `?status=abandoned` | `?status=expired` |
+| On one run | `status: "abandoned"` | `status: "expired"` plus `error.code: "LINK_EXPIRED"` |
+| Webhook | None | `run.expired` |
+
+A typical stalled journey is reported as `abandoned` an hour in, and as `expired` a day later.
+
+<Callout kind="info">
+  An expiry is not always the workflow deadline.
+  An interactive step can carry its own, shorter deadline, and a run that dies that way is reported identically.
+</Callout>
+
+<Callout kind="alert">
+  `abandoned` is not terminal, and it is the only status that can un-happen.
+  The run stays live and resumes the moment the customer returns.
+  Never infer "this run is over" from seeing it: key that decision on the Terminal column above.
+</Callout>
+
+## Filtering
+
+`?status=X` returns exactly the runs whose `status` field reads `X`.
+The filter and the reported value come from one expression, so they cannot drift.
+
+Two consequences follow.
+
+- **The counts partition.**
+  Six requests with `limit=1` give you a breakdown that sums to your run count, with nothing double-counted.
+  `?decision=` is not part of that sum, since it slices the same runs a second way.
+- **`?status=failed` does not return expired runs.**
+  If you mean "everything that halted badly", query for `failed` and `expired` separately.
+
+### `?status=abandoned`
+
+A run is abandoned when it is waiting on the end user and nothing has happened for longer than the workflow's `abandon_timeout_seconds`.
+
+- It is not terminal and not final.
+  The run stays live and fully resumable.
+  If the customer returns and finishes, it completes normally and stops being reported here.
+- Runs parked for internal review are never reported as abandoned, however long they sit.
+  Use `?decision=review` for those.
+- Set `abandon_timeout_seconds` to `0` to switch the reporting off for a workflow.
+  Because the value is applied at read time, changing it re-classifies existing runs immediately.
+
+### `?status=expired`
+
+A run expires when it passes the workflow's `run_ttl_seconds` with the journey unfinished, or when the interactive step it was parked on timed out.
+Unlike `abandoned`, this is terminal: the run cannot be resumed.
+Issue a new run for the same `reference_id`.
+
+Every run here reports `status: "expired"` and `error.code: "LINK_EXPIRED"`, the same on the list and the single-run fetch, and fires the `run.expired` webhook rather than `run.failed`.

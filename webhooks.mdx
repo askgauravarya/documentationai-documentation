@@ -1,0 +1,47 @@
+---
+title: Webhooks
+description: Get notified when a run reaches a terminal status instead of polling for it.
+---
+
+When a workflow has a `lifecycle_webhook_url` configured, Deepvue notifies your endpoint on run-completion lifecycle events.
+
+Terminal completion and failure events are delivered on the same channel.
+The `run.expired` event fires when a run expires on a deadline, rather than `run.failed`.
+
+Respond promptly with a `2xx` to acknowledge receipt.
+
+## Configuring the webhook
+
+```bash
+curl -X POST 'https://api.deepvue.link/v1/workflows/{id}/webhook' \
+  -H 'Content-Type: application/json' \
+  -H 'client-id: YOUR_CLIENT_ID' \
+  -H 'x-api-key: YOUR_API_KEY' \
+  -d '{"lifecycle_webhook_url": "https://your-app.example.com/hooks/kyc"}'
+```
+
+<Callout kind="alert">
+  This endpoint is add-only.
+  It sets the URL when none is configured, and returns `409` otherwise.
+</Callout>
+
+| Status | Body |
+| --- | --- |
+| `201` | The updated `Workflow` |
+| `400` | `{"error":"lifecycle_webhook_url must be an absolute http(s) URL"}` |
+| `409` | `{"error":"webhook already configured for this workflow"}` |
+
+Once configured, the URL is returned as `lifecycle_webhook_url` on the workflow.
+The field is omitted when no per-workflow webhook is set.
+
+## What does not fire a webhook
+
+<Callout kind="info">
+  Recording a review verdict fires no webhook.
+  It does not change `status` or `completed_at`, and does not re-run anything.
+  A finished run stays finished.
+</Callout>
+
+`abandoned` also fires nothing.
+It is a read-time classification of a run that is still live and still resumable, not a lifecycle event.
+The same journey fires `run.expired` later, if the customer never comes back.

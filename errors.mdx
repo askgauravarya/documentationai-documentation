@@ -1,0 +1,52 @@
+---
+title: Errors
+description: The error envelope, and what each run error code means for your integration.
+---
+
+## The error envelope
+
+Transport errors use `{"error": "<message>"}`, and add `"code": "<CODE>"` when a machine-readable discriminator is available.
+
+```json
+{ "error": "insufficient balance", "code": "INSUFFICIENT_BALANCE" }
+```
+
+Authentication failures are listed separately on the [Authentication](/authentication) page.
+
+## RunError
+
+`error` is present on a run only when `status` is `failed` or `expired`.
+It is otherwise explicitly `null`, never absent, so a poller can test it without a key-existence check.
+
+| Field | Type | Presence | Notes |
+| --- | --- | --- | --- |
+| `code` | enum | always | See the table below. |
+| `check` | string | when attributable | `key` of the check the run exited on. |
+| `message` | string | always | A plain sentence. Safe to log, not intended for end users. |
+
+### Codes
+
+| Code | Meaning | Suggested action |
+| --- | --- | --- |
+| `CHECK_FAILED` | A verification step returned a negative result. The subject did not pass. | Terminal business outcome. Read `checks[]` for which and why. Do not retry. |
+| `RETRIES_EXHAUSTED` | Every call succeeded, but a step kept returning a result the workflow rejected until the attempt budget ran out. | Terminal business outcome. `message` says what the step was looking for. Do not retry. |
+| `SOURCE_UNAVAILABLE` | An upstream verification source did not return a usable response. | Transient. Start a new run. |
+| `LINK_EXPIRED` | The end user never completed an interactive step before the deadline. | Start a new run and re-issue the link. |
+| `WORKFLOW_ERROR` | Anything else: a configuration or internal fault. | Not retryable by the caller. Contact support with the `run_id`. |
+
+<Callout kind="alert">
+  Switch on `code`.
+  Show `message` to a person.
+  Treat an unrecognized code as `WORKFLOW_ERROR`.
+</Callout>
+
+`message` is a human-readable sentence describing what the failing step means.
+It never contains the upstream vendor response: no vendor status code, response body, or internal identifier reaches this field.
+
+## Failed is not expired
+
+`?status=failed` and `?status=expired` are disjoint.
+Neither returns the other's runs, and each run comes back exactly once.
+
+Query for both if you mean "everything that halted badly".
+See [Run status lifecycle](/run-lifecycle) for the full comparison.

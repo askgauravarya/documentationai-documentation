@@ -1,57 +1,49 @@
 ---
-title: Authentication (Sample)
-description: Sample guidance for authentication and OpenAPI usage.
+title: Authentication
+description: The two headers every request carries, and what each failure status means.
 ---
 
-## Overview
+Partners authenticate every request with two credentials, sent as headers.
 
-This is sample content. Replace tokens, URLs, headers, and flows with your real authentication requirements.
-
-<Callout kind="info">
-
-This site ships with placeholder content for authentication. Update this page and `openapi.yaml` to match your real API before sharing with users.
-
-</Callout>
-
-This API uses OpenAPI to describe endpoints, parameters, and responses. The reference is generated from `openapi.yaml`, so keep that file up to date as your API evolves.
-
-## Authentication
-
-Use a bearer token in the `Authorization` header for authenticated requests. Replace the base URL and token with values for your own API.
-
-```bash
-curl https://api.example.com/v1/example \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-<ParamField header="Authorization" param-type="string" required="true">
-  `Bearer YOUR_TOKEN`
+<ParamField header="client-id" param-type="string" required="true">
+  Your Deepvue client identifier.
 </ParamField>
 
-## Keep OpenAPI in sync
+<ParamField header="x-api-key" param-type="string" required="true">
+  Your Deepvue API key.
+</ParamField>
 
-Define your authentication and base settings in `openapi.yaml` so the API Reference stays accurate and consistent.
+<Callout kind="alert">
+  `x-api-key` is a secret.
+  Keep it server-side.
+  It must never be exposed in a browser or a mobile client.
+</Callout>
 
-At a minimum, you should:
+Send both headers on every request.
 
-- Define one or more security schemes that describe how clients authenticate (for example, bearer token, API key in a header, or other scheme).
-- Reference those security schemes on operations that require authentication so they are clearly marked as secured.
-- Set the correct base URL and any required global headers (for example, versioning or tenant headers) so example requests are copy-pasteable.
+```bash
+curl 'https://api.deepvue.link/v1/workflows' \
+  -H 'client-id: YOUR_CLIENT_ID' \
+  -H 'x-api-key: YOUR_API_KEY'
+```
 
-When your real authentication flow changes (for example, new header names, token formats, or additional requirements), update `openapi.yaml`. The generated API Reference will then reflect your current auth model without needing to edit each endpoint page by hand.
+## Authentication failures
 
-## Using the API reference
+| Status | Body | Meaning |
+| --- | --- | --- |
+| `401` | `{"error":"missing credentials: send client-id + x-api-key headers"}` | No usable credential was supplied. |
+| `401` | `{"error":"invalid Deepvue credentials"}` | The credential pair was rejected. |
+| `403` | `{"error":"account_disabled"}` | The account exists but is not yet approved. |
+| `403` | `{"error":"Deepvue account not authorized for this surface"}` | The account is not authorized for this API. |
+| `502` | `{"error":"deepvue authorize failed: …"}` | Authorization service temporarily unreachable. Retry. |
+| `503` | `{"error":"auto-provisioning disabled - log in once via /auth/login first"}` | First-time setup not yet completed. |
 
-Use the API Reference to explore endpoints, required parameters, and example responses. When you change authentication headers or base URLs, update `openapi.yaml` so the generated reference matches what your clients should use.
+## Bearer tokens
 
-## Common mistakes
+One route also accepts a dashboard Bearer token instead of the header pair: `POST /v1/signals/{run_id}/{signal_name}`, used to record a review verdict.
+Every other route requires `client-id` and `x-api-key`.
 
-<Expandable title="Why am I getting a 401?" default-open="false">
-
-Verify that:
-
-- The token is valid and not expired.
-- The token is sent in the `Authorization` header.
-- The header value includes the `Bearer` prefix and a space before the token.
-
-</Expandable>
+<Callout kind="info">
+  Retry `502` responses.
+  Treat `401` and `403` as configuration problems rather than transient faults, and do not retry them in a loop.
+</Callout>

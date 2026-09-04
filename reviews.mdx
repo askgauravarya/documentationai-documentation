@@ -1,0 +1,117 @@
+---
+title: Reviews and decisions
+description: The review work queue, and how to record a human verdict on a run.
+---
+
+`decision` is a second axis, independent of `status`.
+`status` says how far a run got.
+`decision` says where a human verdict on it stands.
+
+They are AND-ed when you filter, and every combination is meaningful.
+
+| Value | Appears under | Means |
+| --- | --- | --- |
+| `null` | no decision filter | Nothing on this run needs a human. Most completed runs. |
+| `"review"` | `?decision=review` | A verdict is owed: parked on a review step, or finished with something unverified. |
+| `"approve"` / `"reject"` | `?decision=approve` / `=reject` | Someone ruled. |
+
+The correspondence is exact.
+A run reads `review` if and only if the queue returns it, so you can poll the filter and act on the field without reconciling them.
+
+<Callout kind="info">
+  A run awaiting review reports `status: "in_progress"`, and its `decision` reads `review`.
+  Because a decided run carries on through the rest of the workflow, its verdict must be sayable at the same time as `in_progress` or `completed`.
+</Callout>
+
+## The review work queue
+
+`?decision=review` is the work queue.
+It surfaces runs blocked on an operator, and runs that finished without fully verifying: the half no status filter can show you, because their status is a perfectly healthy `completed`.
+
+| Query | Runs |
+| --- | --- |
+| `?decision=review` | The whole queue |
+| `?decision=review&status=in_progress` | Blocked on an operator: parked, cannot continue |
+| `?decision=review&status=completed` | Finished, but something was left unverified |
+
+A run matches when either holds.
+It is parked on an internal review step, or it completed and along the way some step left something open.
+
+| Signal on any step | What it means |
+| --- | --- |
+| `source_ok: false` / `analysis_ok: false` | A source was down or a document was unreadable, and the workflow was configured to carry on |
+| `opted_out: true` | The customer declined an optional step |
+| `geo_ok: false` | Location could not be captured |
+| `consent_status` other than `success` | The customer did not finish giving consent |
+| A step that failed and was recovered from | Something went wrong even though the run finished |
+| A step dispatched 3+ times | The customer had to be asked repeatedly |
+
+Two boundaries to note.
+
+- Failed runs are never here.
+  They are already `?status=failed`, each carrying an `error` explaining what ended it.
+- A run leaves the moment it is decided.
+  One verdict settles it, however many steps it is flagged for.
+
+`approve` and `reject` are the settled other side of this axis, and they read both places a verdict can live: the review node's own output, and a resolution recorded against a finished run.
+
+<Callout kind="info">
+  A run leaves `?decision=review` as soon as its review signal closes, including when you cancel it.
+  Cancelled runs are never reported there.
+</Callout>
+
+## Resolving a review
+
+`GET /v1/runs/{id}` shows where the run stands in `decision`, and what raised the question in `reviews[]`: one entry per flagged step, each with its `reason`.
+
+Record a verdict by POSTing to the run's review signal.
+Both credential types work on this route, the `client-id` and `x-api-key` pair or a dashboard Bearer token.
+
+```bash
+curl -X POST 'https://api.deepvue.link/v1/signals/{run_id}/human_review_decision' \
+  -H 'Content-Type: application/json' \
+  -H 'client-id: YOUR_CLIENT_ID' -H 'x-api-key: YOUR_API_KEY' \
+  -d '{"payload": {"decision": "reject", "notes": "KYB docs verified manually"}}'
+```
+
+### One route, two behaviours
+
+The response says which one happened.
+
+| `result` | What happened |
+| --- | --- |
+| `signal_delivered` | The run was parked on a review step. The signal was delivered and the workflow advanced. |
+| `review_recorded` | The run had already finished. An annotation was recorded and nothing advanced. |
+
+<Callout kind="alert">
+  Never infer which happened from the run's state.
+  Read `result`.
+</Callout>
+
+### Rules
+
+- **The verdict is the run's.**
+  There is no `node_id`.
+  Sending one is a `400`, not an ignored field.
+- **Re-deciding is allowed** and overwrites the previous verdict.
+- **Any finished run can be decided**, including one flagged for nothing.
+  Every run reports a `decision`, so every run is answerable.
+- **The run moves.**
+  It leaves `?decision=review` and appears under `?decision=approve` or `?decision=reject`.
+- **A decided run's report changes.**
+  `decision` carries the verdict, and each flagged step's card closes with it: `approve` becomes `ok`, `reject` becomes `failed`, with a fixed sentence appended to the reason it was raised for.
+  Cards that were not flagged are untouched.
+- **Nothing else changes.**
+  Recording a verdict does not change `status` or `completed_at`, does not re-run anything, and fires no webhook.
+  A finished run stays finished.
+- **`notes` never reaches the PDF.**
+  It is returned by `GET /v1/runs/{id}` and by `?view=report`, and is deliberately absent from `GET /v1/runs/{id}/report.pdf`.
+
+### Responses
+
+| Status | Body |
+| --- | --- |
+| `200` | `{"ok":true,"result":"review_recorded","decision":"…"}` |
+| `400` | `{"error":"payload.node_id is no longer accepted: a review decision applies to the whole run"}` |
+| `400` | `{"error":"payload rejected: decision must be \"approve\" or \"reject\""}` |
+| `404` | `{"error":"no open signal human_review_decision for this run"}` - the run is not parked on a review step |

@@ -1,54 +1,186 @@
 ---
-title: Core Concepts
-description: The basic building blocks of this starter kit.
+title: Conventions and objects
+description: Timestamps, absent versus null, the list envelope, and every object shape in the API.
 ---
 
-## Overview
+## Conventions
 
-<Callout kind="alert">
-This page is an example. Replace every concept with the real terms your product uses.
+### Timestamps
+
+All timestamps are RFC 3339 UTC, for example `2026-07-30T09:14:02Z`.
+
+### Absent means unset
+
+Optional fields are omitted from the JSON rather than sent as `null`.
+
+There are two exceptions.
+`action_required` and `error` are always present and are explicitly `null` when not applicable, so a poller can test them without a key-existence check.
+
+On the run detail endpoint, `decision` and `resolved_at` follow the same rule: always present, a value or an explicit `null`.
+
+### The list envelope
+
+Every list endpoint returns a fixed envelope.
+
+```json
+{ "data": [ "..." ], "total": 128, "limit": 50, "offset": 0 }
+```
+
+`total` is the count of all records matching the filter, ignoring `limit` and `offset`.
+
+### Errors
+
+Transport errors use `{"error": "<message>"}`, and add `"code": "<CODE>"` when a machine-readable discriminator is available.
+
+### Unknown fields are rejected
+
+Unknown JSON fields in a request body are rejected, not silently ignored.
+
+## Object schemas
+
+### Workflow
+
+The list shape, returned by `GET /v1/workflows` and `POST /v1/workflows/{id}/webhook`.
+
+| Field | Type | Presence | Notes |
+| --- | --- | --- | --- |
+| `id` | string (uuid) | always | Use this to trigger runs. |
+| `name` | string | always | |
+| `description` | string | optional | Omitted when unset. |
+| `published` | boolean | always | `true` = a published version exists. |
+| `run_ttl_seconds` | integer | always | How long a run stays usable from start. `0` = no deadline. |
+| `abandon_timeout_seconds` | integer | always | Idle window before `?status=abandoned` reports a run. `0` = off. |
+| `lifecycle_webhook_url` | string | optional | Omitted when no per-workflow webhook is configured. |
+| `created_at` | string (ts) | always | |
+
+### WorkflowDetail
+
+Returned by `GET /v1/workflows/{id}`.
+Everything in `Workflow`, plus `steps`, a `Step[]` that is always present and is `[]` when the workflow has none.
+
+### Step
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `key` | string | Same vocabulary as `Check.key`. |
+| `label` | string | Same vocabulary as `Check.label`. |
+
+`steps` lets you build your result mapping before running anything: every key that can appear in a run's `checks[]` appears here.
+
+<Callout kind="info">
+  **It is a superset.**
+  Workflows branch, so one run may take a DigiLocker path and another a document-OCR path.
+  Treat a key that never arrives as "that branch was not taken", not as an error.
+
+  **Order is indicative, not guaranteed.**
+  It approximates the order a journey runs in, but the underlying graph has retry loops and alternate paths.
 </Callout>
 
-## The building blocks
+Only verification checks are listed.
+Consent screens, document capture, decision logic, and other interior steps are not, since they produce no result you receive.
+`steps` reflects the version a run would actually execute: the published version when one exists, otherwise the latest.
 
-<Columns cols={2}>
-  <Card title="Pages" icon="file-text">
-    Every page is an `.mdx` file. Content lives in the repo and is safe to edit.
-  </Card>
-  <Card title="Navigation" icon="list">
-    Sidebar structure comes from `documentation.json`.
-  </Card>
-  <Card title="Components" icon="layout-grid">
-    Reusable blocks like Callouts, Steps, Tabs, and Cards keep pages consistent.
-  </Card>
-  <Card title="API Reference" icon="code">
-    If you use it, the API tab reads from `openapi.yaml`.
-  </Card>
-</Columns>
+### Run
 
-## Navigation shape (sample)
+| Field | Type | List | Detail | Notes |
+| --- | --- | :---: | :---: | --- |
+| `id` | string (uuid) | ✓ | ✓ | |
+| `workflow_id` | string (uuid) | ✓ | ✓ | |
+| `reference_id` | string | ✓ | ✓ | Echoed from the trigger request. |
+| `status` | enum | ✓ | ✓ | See [Run status lifecycle](/run-lifecycle). |
+| `started_at` | string (ts) | ✓ | ✓ | |
+| `completed_at` | string (ts) or null | ✓ | ✓ | `null` until terminal. |
+| `action_required` | ActionRequired or null | ✓ | ✓ | Non-null only on a non-terminal status. |
+| `error` | RunError or null | ✓ | ✓ | Non-null only when `status` is `failed` or `expired`. |
+| `checks` | Check[] | | ✓ | Detail only. Omitted when empty. |
+| `decision` | enum or null | | ✓ | Detail only. `review`, `approve`, `reject`, or `null`. |
+| `notes` | string | | optional | What the reviewer typed. Omitted, never `null`, when they typed nothing. |
+| `resolved_at` | string (ts) or null | | ✓ | `null` until a verdict is recorded. |
+| `reviews` | ReviewFlag[] | | ✓ | Detail only. Omitted when the run is flagged for nothing. |
+
+`checks`, `reviews`, and the three decision fields are deliberately absent from list responses.
+List to find runs, then `GET /v1/runs/{id}` to read results.
+
+<Callout kind="info">
+  There is no reviewer field.
+  Who ruled is not exposed on this API.
+  The response tells you that a verdict was reached and when, not by whom.
+</Callout>
+
+### ActionRequired
+
+The run is parked waiting on a human.
+Present only on a non-terminal status.
+
+A run can be waiting on either one of your operators or the end customer.
+Read `type` below, not `status`, to tell those apart.
+
+| Field | Type | Presence | Notes |
+| --- | --- | --- | --- |
+| `type` | enum | always | `customer_input` - send the end user to `url`. `review` - an internal reviewer must decide. |
+| `signal_name` | string | always | Pass to `POST /v1/signals/{run_id}/{signal_name}` to unblock. |
+| `url` | string | when `type` is `customer_input` | Signed hosted-journey link. Omitted for `review`. |
+
+### Check
+
+One logical verification step.
+Stable across workflow edits, keyed by a published name and never by an internal node identifier.
+
+| Field | Type | Presence | Notes |
+| --- | --- | --- | --- |
+| `key` | string | always | Stable machine name, for example `pan`, `face_match`, `court`. |
+| `label` | string | always | Human-readable, for example `PAN verification`. |
+| `status` | enum | always | `pending`, `running`, `passed`, `failed`. |
+| `data` | object | when the step produced output | The step's result fields. Shape varies per `key`. |
+
+Order is execution order, oldest first.
+
+<Callout kind="alert">
+  A step the workflow has not reached yet has no entry.
+  Absence means "not started", not "failed".
+</Callout>
+
+Steps that run as a submit-then-poll pair appear as one entry whose `data` reflects the poll result.
+`data` field names are per-`key`, documented per check, and stable for a given `key`.
+
+### ReviewFlag
+
+There is one decision per run.
+An operator looking at a finished run is deciding about the person, with the flags as evidence for that one call.
+So `reviews[]` records why a run was flagged, and `decision` records what was concluded.
+
+| Field | Type | Presence | Notes |
+| --- | --- | --- | --- |
+| `node_id` | string | always | Which step. The same identifier `?view=report` exposes. |
+| `label` | string | always | The step's name, for example `Face Match`. |
+| `reason` | string | always | Why it is flagged, for example `The customer declined to provide this.` |
 
 ```json
 {
-  "tab": "Documentation",
-  "groups": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        { "title": "Introduction", "path": "introduction" }
-      ]
-    }
+  "decision": "approve",
+  "notes": "KYB docs verified manually",
+  "resolved_at": "2026-08-12T11:08:56Z",
+  "reviews": [
+    { "node_id": "n_uan_confirm", "label": "Collect Text (single field)",
+      "reason": "The customer declined to provide this." },
+    { "node_id": "n_bureau_initiate", "label": "Credit report - consent & redirect",
+      "reason": "The customer did not complete consent." }
   ]
 }
 ```
 
-## How to adapt this page
+`reviews[]` is identical on `GET /v1/runs/{id}` and `?view=report`: same flags, same order, as are the decision fields.
+If a report card reads `needs_review`, that step is in `reviews[]`.
+The two cannot disagree.
+Both are absent from the rendered PDF.
 
-<Steps>
-  <Step title="Replace the terms" icon="edit">
-    Swap "Pages" and "Components" for your real domain language.
-  </Step>
-  <Step title="Add your concepts" icon="plus">
-    Create a section for the ideas your users must learn first.
-  </Step>
-</Steps>
+### RunError
+
+Present only when `status` is `failed` or `expired`.
+See [Errors](/errors) for the code table and what to do about each one.
+
+| Field | Type | Presence | Notes |
+| --- | --- | --- | --- |
+| `code` | enum | always | See [Errors](/errors). |
+| `check` | string | when attributable | `key` of the check the run exited on. |
+| `message` | string | always | A plain sentence. Safe to log, not intended for end users. |

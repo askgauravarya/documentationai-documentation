@@ -1,0 +1,107 @@
+---
+title: Reports
+description: Read a run's verification report as JSON for your own UI, or as a rendered PDF.
+---
+
+Every run can be read back as a verification report.
+Two representations exist, printed from the same content model.
+
+<Columns cols={2}>
+  <Card title="JSON" icon="code" horizontal="false">
+    `GET /v1/runs/{id}?view=report` returns the content model, before rendering.
+    Use it to display results in your own UI without parsing a PDF.
+  </Card>
+  <Card title="PDF" icon="file-text" horizontal="false">
+    `GET /v1/runs/{id}/report.pdf` returns the rendered document, suitable for archiving or sharing with the subject.
+  </Card>
+</Columns>
+
+## The report content model
+
+```json
+{
+  "run":    { "run_id": "…", "reference_id": "…", "workflow_name": "…",
+              "workflow_version": 1, "run_status": "failed",
+              "started": "Aug 10, 2026, 3:45 PM", "completed": "…", "duration": "1m 45s" },
+  "title": "Identity Verification",
+  "subject":{ "name": "…", "dob": "…", "gender": "…", "portrait_url": "https://…" },
+
+  "decision":    "review",
+  "notes":       "…",
+  "resolved_at": null,
+  "reviews": [{ "node_id": "n_face_match", "label": "Face Match",
+                "reason": "The customer declined to provide this." }],
+
+  "sections": [{
+     "key": "selfie", "label": "Selfie",
+     "status": "failed",
+     "attempts": 3,
+     "cards": [{
+        "node_id": "n_face_match",
+        "title":   "Face Match",
+        "status": "needs_review",
+        "note":    "We could not detect a face in the selfie…",
+        "attempts": 3,
+        "layout": "fields",
+        "entries": [{ "label": "Match confidence", "value": "…" }],
+        "images": [{ "url": "https://…", "attempt": 1, "superseded": true }],
+        "table":   { "title": "…", "columns": ["…"], "rows": [["…"]] },
+        "tiles":   [{ "label": "…", "value": "…" }],
+        "highlight": { "label": "Credit score", "value": "742" }
+     }]
+  }]
+}
+```
+
+The decision fields are the same three fields, with the same values, as on `GET /v1/runs/{id}`.
+Who ruled is not exposed.
+
+## Reading it correctly
+
+<Callout kind="info">
+  `decision` is the human sign-off.
+  `run.run_status` is the journey.
+  A run can finish every screen and still be owed a verdict: `run_status: "completed"` with `decision: "review"`.
+  A run that finished with nothing to look at reads `decision: null`, meaning no verdict is owed.
+</Callout>
+
+The per-step verification roll-up, one of `ok`, `needs_review`, or `failed`, is on `sections[].status`.
+
+**A decision rewrites the flagged cards.**
+Once a run is decided, each step in `reviews[]` closes with it.
+`approve` becomes `status: "ok"` and `reject` becomes `"failed"`, and its `note` keeps the reason it was raised for plus a fixed outcome sentence.
+Cards not in `reviews[]` are untouched.
+
+**`note` is a plain sentence, from a closed set.**
+For `needs_review` it is the workflow author's wording for what a negative result means.
+For `failed` it is fixed copy chosen by the error class.
+It is never the upstream response.
+
+**`attempts` is how many times the customer went through the step.**
+`1` means first time.
+Internal network retries are not counted; this is what the person experienced.
+
+<Callout kind="alert">
+  `images[].url` is a fresh short-lived link, minted per request.
+  Do not store it.
+  Fetch and copy the bytes, or request the run again.
+</Callout>
+
+**Fields are an allowlist.**
+A value appears only if its node type declares a title for it, which keeps raw upstream payloads, identifiers, and credentials structurally out of this response.
+
+**Presence rules.**
+`sections` and `cards` are always present, and are `null` when there are none.
+Everything optional inside a card, meaning `note`, `entries`, `images`, `table`, `tiles`, and `highlight`, is omitted entirely when empty.
+
+## The PDF
+
+`GET /v1/runs/{id}/report.pdf` renders the report for a terminal run.
+
+<Callout kind="alert">
+  Operator notes recorded during review are deliberately excluded from the PDF.
+  `reviews[]` and the decision fields are absent from it too.
+  Use `?view=report` when you need them.
+</Callout>
+
+If report generation is not configured for your account, both routes return `503` with `{"error":"report generation is not configured"}`.
