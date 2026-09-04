@@ -159,6 +159,10 @@ So `reviews[]` records why a run was flagged, and `decision` records what was co
 | `label` | string | always | The step's name, for example `Face Match`. |
 | `reason` | string | always | Why it is flagged, for example `The customer declined to provide this.` |
 
+`node_id` is the one internal identifier on this shape, and it is deliberate.
+A partner told "this run wants a look" is also told which step, without opening a dashboard.
+It is the same identifier `?view=report` exposes.
+
 ```json
 {
   "decision": "approve",
