@@ -32,6 +32,26 @@ Because the six partition cleanly, you can sum them to get your total run count,
 Treat `expired` as a kind of failure, since it is terminal and always carries an `error`.
 But query for both if you mean "everything that halted badly", because a single filter does not cover the pair.
 
+## Handling an unrecognized status
+
+The six above are the values the API accepts today, and it will tell you so itself: send `?status=` an unsupported value and the `400` names the full set.
+
+Even so, do not let an unfamiliar `status` break your poller.
+A client that switches on these six and falls through to an unhandled branch is one enum addition away from misreading a live run as finished.
+
+<Callout kind="info">
+  Treat a `status` you do not recognize as **non-terminal**, and keep polling.
+  The run's own `run_ttl_seconds` bounds the loop: a journey that never completes ends up `expired`, which is terminal and always carries an `error`.
+  Log the unexpected value so you find out about it, rather than deciding the run's outcome from a value you cannot interpret.
+</Callout>
+
+Deciding the opposite way is the more expensive mistake.
+Treating an unknown `status` as terminal ends the loop on a run that may still be executing, and you record an outcome the run never reached.
+
+Note that `running` is a valid value of `checks[].status`, alongside `pending`, `passed`, and `failed`.
+It is not a run status.
+The two vocabularies are separate, and a check that is `running` sits inside a run that is `in_progress`.
+
 ## Waiting on an operator is not a status
 
 A run waiting on one of your operators reports `in_progress` and is surfaced by `?decision=review`.
