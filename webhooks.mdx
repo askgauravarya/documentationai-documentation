@@ -1,8 +1,10 @@
 ---
-title: "Webhooks - Run Lifecycle Events"
-description: "Configure a Deepvue Workflows lifecycle webhook to be notified when a run reaches a terminal status, instead of polling. Includes setup and what does not fire."
+title: Webhooks - Run Lifecycle Events
+description: >-
+  Configure a Deepvue Workflows lifecycle webhook to be notified when a run
+  reaches a terminal status, instead of polling. Includes setup and what does
+  not fire.
 ---
-
 ## Overview
 
 Polling is fine for a prototype.
@@ -27,23 +29,23 @@ curl -X POST 'https://api.deepvue.link/v1/workflows/{id}/webhook' \
   -d '{"lifecycle_webhook_url": "https://your-app.example.com/hooks/kyc"}'
 ```
 
-<Callout kind="alert">
+<Callout kind="alert" collapsed="false">
   This endpoint is add-only.
   It sets the URL when none is configured, and returns `409` otherwise.
 </Callout>
 
-| Status | Body |
-| --- | --- |
-| `201` | The updated `Workflow` |
-| `400` | `{"error":"lifecycle_webhook_url must be an absolute http(s) URL"}` |
-| `409` | `{"error":"webhook already configured for this workflow"}` |
+| Status | Body                                                                |
+| ------ | ------------------------------------------------------------------- |
+| `201`  | The updated `Workflow`                                              |
+| `400`  | `{"error":"lifecycle_webhook_url must be an absolute http(s) URL"}` |
+| `409`  | `{"error":"webhook already configured for this workflow"}`          |
 
 Once configured, the URL is returned as `lifecycle_webhook_url` on the workflow.
 The field is omitted when no per-workflow webhook is set.
 
 ## What does not fire a webhook
 
-<Callout kind="info">
+<Callout kind="info" collapsed="false">
   Recording a review verdict fires no webhook.
   It does not change `status` or `completed_at`, and does not re-run anything.
   A finished run stays finished.
@@ -56,15 +58,18 @@ The same journey fires `run.expired` later, if the customer never comes back.
 ## Next steps
 
 <Columns cols="3">
-  <Card title="Run status lifecycle" icon="activity" href="/run-lifecycle">
+  <Card title="Run status lifecycle" href="/run-lifecycle" icon="activity" horizontal="false">
     Which statuses are terminal, and which fire nothing.
   </Card>
 
-  <Card title="Reports" icon="file-text" href="/reports">
+  <Card title="Reports" href="/reports" icon="file-text" horizontal="false">
     Fetch the result once the run is done.
   </Card>
 
-  <Card title="Errors" icon="alert-circle" href="/errors">
+  <Card title="Errors" href="/errors" icon="alert-circle" horizontal="false">
     Tell a business outcome apart from a transient fault.
   </Card>
 </Columns>
+
+
+
