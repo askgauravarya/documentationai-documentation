@@ -1,6 +1,12 @@
 {
   "name": "Deepvue Workflows",
   "initialRoute": "introduction",
+  "seo": {
+    "robots:index": false,
+    "robots:follow": false,
+    "sitemap:enabled": false,
+    "llms-txt:enabled": false
+  },
   "scripts": [
     {
       "src": "scripts/rybbit-analytics.js"
